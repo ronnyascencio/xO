@@ -1,0 +1,14 @@
+{
+  "project_root": "D:/Pipeline/xO",
+  "maya_version": "2024.3",
+  "nuke_version": "15.1v4",
+  "render_engine": "3Delight",
+  "modules": {
+    "maya": {
+      "templates": ["look_dev", "lighting"]
+    },
+    "nuke": {
+      "templates": ["prep", "compositing"]
+    }
+  }
+}
