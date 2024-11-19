@@ -18,7 +18,7 @@ def show_saver_loader():
     try:
         from saver_loader import MainApp
     except ImportError as e:
-        cmds.warning(f"Error al importar saver_loader.py: {e}")
+        cmds.warning(f"Error import saver_loader.py: {e}")
         return
 
     # Inicializar y mostrar la interfaz

@@ -188,7 +188,7 @@
                    </item>
                    <item>
                     <property name="text">
-                     <string>Look Dev</string>
+                     <string>LookDev</string>
                     </property>
                    </item>
                    <item>
@@ -329,7 +329,7 @@
                  <item>
                   <widget class="QLabel" name="lbl_user">
                    <property name="text">
-                    <string>User:</string>
+                    <string/>
                    </property>
                   </widget>
                  </item>

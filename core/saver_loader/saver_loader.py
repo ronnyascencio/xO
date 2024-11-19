@@ -9,7 +9,7 @@ class MainApp(QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
         self.dcc = os.getenv("DCC", "Maya")  # Asume Maya como predeterminado si DCC no está configurado
-        print(f"[DEBUG] DCC detectado: {self.dcc}")  # Depuración: DCC activo
+        print(f"[DEBUG] DCC detected: {self.dcc}")  # Debug: DCC active
         self.init_ui()
         self.setup_connections()
         self.populate_shows()
@@ -31,22 +31,24 @@ class MainApp(QMainWindow):
         self.ui.btn_open.clicked.connect(self.open_file)
         self.ui.btn_refresh.clicked.connect(self.refresh_versions)
 
+
+
     def get_base_path(self):
         vfx_path = os.getenv("VFX")
         if not vfx_path:
-            QMessageBox.critical(self, "Error", "La variable de entorno 'VFX' no está configurada.")
+            QMessageBox.critical(self, "Error", "The variable 'VFX' is not configured.")
             sys.exit(1)
         return os.path.join(vfx_path, "Project")
 
     def populate_shows(self):
         base_path = self.get_base_path()
         if not os.path.exists(base_path):
-            QMessageBox.warning(self, "Error", f"No se encontró la carpeta: {base_path}")
+            QMessageBox.warning(self, "Error", f"Directory not found: {base_path}")
             return
 
         shows = [d for d in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, d))]
         print(f"[DEBUG] Base Path: {base_path}")
-        print(f"[DEBUG] Shows detectados: {shows}")
+        print(f"[DEBUG] Shows detected: {shows}")
         self.ui.cbb_show.clear()
         self.ui.cbb_show.addItems(shows)
 
@@ -59,12 +61,12 @@ class MainApp(QMainWindow):
         sequences_path = os.path.join(base_path, show, "scenes")
 
         if not os.path.exists(sequences_path):
-            QMessageBox.warning(self, "Error", f"No se encontró la carpeta: {sequences_path}")
+            QMessageBox.warning(self, "Error", f"Directory not found: {sequences_path}")
             return
 
         sequences = [d for d in os.listdir(sequences_path) if os.path.isdir(os.path.join(sequences_path, d))]
         print(f"[DEBUG] Sequences Path: {sequences_path}")
-        print(f"[DEBUG] Sequences detectadas: {sequences}")
+        print(f"[DEBUG] Sequences detected: {sequences}")
         self.ui.cbb_sequence.clear()
         self.ui.cbb_sequence.addItems(sequences)
 
@@ -78,37 +80,30 @@ class MainApp(QMainWindow):
         shots_path = os.path.join(base_path, show, "scenes", sequence)
 
         if not os.path.exists(shots_path):
-            print(f"[DEBUG] Shots Path no encontrado: {shots_path}")
-            QMessageBox.warning(self, "Error", f"No se encontró la carpeta: {shots_path}")
+            print(f"[DEBUG] Shots Path not found: {shots_path}")
+            QMessageBox.warning(self, "Error", f"Directory not found: {shots_path}")
             return
 
         shots = [d for d in os.listdir(shots_path) if os.path.isdir(os.path.join(shots_path, d))]
         print(f"[DEBUG] Shots Path: {shots_path}")
-        print(f"[DEBUG] Shots detectados: {shots}")
+        print(f"[DEBUG] Shots detected: {shots}")
         self.ui.cbb_shot.clear()
         self.ui.cbb_shot.addItems(shots)
 
     def on_task_changed(self):
         task = self.ui.cbb_task.currentText()
-        print(f"[DEBUG] Tarea seleccionada: {task}")
+        print(f"[DEBUG] Task selected: {task}")
+        self.update_path_info()
 
-        # Para tareas específicas en Maya, habilita los campos de asset
-        if self.dcc == "Maya" and task in ["Modeling", "Shading", "Look Dev", "Rigging"]:
+        # Específicas para Maya
+        if self.dcc == "Maya" and task in ["Modeling", "Shading", "LookDev", "Rigging"]:
             self.ui.cbb_asset.setEnabled(True)
             self.ui.line_assetname.setEnabled(True)
             self.ui.cb_active.setEnabled(True)
         else:
-            # Desactiva los campos de asset para otras tareas
             self.ui.cbb_asset.setEnabled(False)
             self.ui.line_assetname.setEnabled(False)
             self.ui.cb_active.setEnabled(False)
-
-        # Actualiza la información de la ruta al cambiar la tarea
-        try:
-            self.update_path_info()
-        except Exception as e:
-            print(f"[DEBUG] Error al actualizar la ruta: {e}")
-            QMessageBox.warning(self, "Error", "No se pudo actualizar la ruta de guardado.")
 
     def get_save_path(self):
         show = self.ui.cbb_show.currentText()
@@ -117,29 +112,28 @@ class MainApp(QMainWindow):
         task = self.ui.cbb_task.currentText()
         base_path = self.get_base_path()
 
-        # Verificar que 'show' y 'task' estén seleccionados
         if not show or not task:
-            print("[DEBUG] Error: 'show' o 'task' no seleccionado.")
+            print("[DEBUG] Error: 'show' or 'task' not selected.")
             return None
 
         if self.dcc == "Nuke":
             if task in ["Compositing", "Prep"]:
                 if not sequence or not shot:
-                    print("[DEBUG] Error: 'sequence' o 'shot' no seleccionado para Nuke.")
+                    print("[DEBUG] Error: 'sequence' or 'shot' not selected for Nuke.")
                     return None
                 return os.path.join(base_path, show, "scenes", sequence, shot, "nuke", "script")
 
         elif self.dcc == "Maya":
             if task in ["Layout", "Lighting", "Tracking", "FX"]:
                 if not sequence or not shot:
-                    print("[DEBUG] Error: 'sequence' o 'shot' no seleccionado para Maya.")
+                    print("[DEBUG] Error: 'sequence' or 'shot' not selected for Maya.")
                     return None
                 return os.path.join(base_path, show, "scenes", sequence, shot, "maya")
 
-            elif task in ["Modeling", "Shading", "Rigging", "Look Dev"]:
+            elif task in ["Modeling", "Shading", "Rigging", "LookDev"]:
                 asset_type = self.ui.cbb_asset.currentText()
                 if not asset_type:
-                    print("[DEBUG] Error: 'asset_type' no seleccionado para tareas de assets en Maya.")
+                    print("[DEBUG] Error: 'asset_type' not selected for assets in Maya.")
                     return None
                 return os.path.join(base_path, show, "assets", asset_type)
 
@@ -150,12 +144,13 @@ class MainApp(QMainWindow):
         version = 1
         task = self.ui.cbb_task.currentText()
         ext = ".ma" if self.dcc == "Maya" else ".nk"
-        name_components = [self.ui.cbb_show.currentText()]
+        name_components = [task]
 
-        if self.dcc == "Maya" and task in ["Modeling", "Shading", "Look Dev", "Rigging"]:
+        if self.dcc == "Maya" and task in ["Modeling", "Shading", "LookDev", "Rigging"]:
             name_components.append(self.ui.line_assetname.text())
         else:
-            name_components.extend([self.ui.cbb_sequence.currentText(), self.ui.cbb_shot.currentText(), task])
+            name_components = []
+            name_components.extend([self.ui.cbb_shot.currentText(), task])
 
         name_components.append(f"v{version:03}")
         filename = "_".join(name_components) + ext
@@ -172,12 +167,12 @@ class MainApp(QMainWindow):
     def open_file(self):
         selected = self.ui.list_scripts_versions.currentIndex().data()
         if not selected:
-            QMessageBox.warning(self, "Error", "No has seleccionado ningún archivo.")
+            QMessageBox.warning(self, "Error", "haven't selected a file.")
             return
 
         file_path = os.path.join(self.get_save_path(), selected)
 
-        # Abrir archivo en el DCC correspondiente
+        # open the file acording  the DCC
         if self.dcc == "Maya":
             import maya.cmds as cmds
             cmds.file(file_path, open=True, force=True)
@@ -185,12 +180,12 @@ class MainApp(QMainWindow):
             import nuke
             nuke.scriptOpen(file_path)
 
-        QMessageBox.information(self, "Abrir", f"Abriendo archivo: {file_path}")
+        QMessageBox.information(self, "Open", f"Opening file: {file_path}")
 
     def save_file(self):
         save_path = self.get_save_path()
         if not save_path:
-            QMessageBox.warning(self, "Error", "No se pudo determinar la ruta de guardado.")
+            QMessageBox.warning(self, "Error", "couldn't determine the save path.")
             return
 
         filename = self.generate_filename()
@@ -205,7 +200,7 @@ class MainApp(QMainWindow):
             import nuke
             nuke.scriptSaveAs(file_path)
 
-        QMessageBox.information(self, "Guardado", f"Archivo guardado: {file_path}")
+        QMessageBox.information(self, "Saved", f"File Saved: {file_path}")
         self.refresh_versions()
 
     def refresh_versions(self):
@@ -213,6 +208,7 @@ class MainApp(QMainWindow):
         print(f"[DEBUG] Refresh Versions: Save Path = {save_path}")
 
         if not save_path or not os.path.exists(save_path):
+            print("[DEBUG] Save path is invalid or does not exist.")
             self.ui.list_scripts_versions.setModel(QStringListModel())
             return
 
@@ -221,7 +217,7 @@ class MainApp(QMainWindow):
             versions = [f for f in os.listdir(save_path) if f.endswith(ext)]
             print(f"[DEBUG] Found versions: {versions}")
         except Exception as e:
-            print(f"[DEBUG] Error al listar versiones: {e}")
+            print(f"[DEBUG] Error listing versions: {e}")
             versions = []
 
         self.ui.list_scripts_versions.setModel(QStringListModel(versions))
@@ -229,10 +225,10 @@ class MainApp(QMainWindow):
     def update_path_info(self):
         save_path = self.get_save_path()
         if save_path:
-            print(f"[DEBUG] Ruta de guardado actual: {save_path}")
+            print(f"[DEBUG] Save Path: {save_path}")
             self.refresh_versions()
         else:
-            QMessageBox.warning(self, "Advertencia", "No se pudo determinar la ruta de guardado.")
+            QMessageBox.warning(self, "Warning", "Could not determine the save path.")
             self.ui.list_scripts_versions.setModel(QStringListModel())
 
 

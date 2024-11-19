@@ -11,19 +11,18 @@ saver_loader_dir = os.path.dirname(saver_loader_path)
 def show_saver_loader():
     # Set DCC explicitly to Nuke
     os.environ["DCC"] = "Nuke"
-    print("[DEBUG] Ejecutando Saver Loader en Nuke")
+    print("[DEBUG]  Saver Loader in Nuke")
     print(f"[DEBUG] Saver Loader Path: {saver_loader_path}")
-    print(f"[DEBUG] Python Path: {sys.path}")
 
     if saver_loader_dir not in sys.path:
         sys.path.append(saver_loader_dir)
-        print(f"[DEBUG] Agregado a sys.path: {saver_loader_dir}")
+        print(f"[DEBUG] Added a sys.path: {saver_loader_dir}")
 
     try:
         from saver_loader import MainApp  # Import the main application class
     except ImportError as e:
         nuke.message(f"Error loading saver_loader: {e}")
-        print(f"[DEBUG] Error al importar saver_loader: {e}")
+        print(f"[DEBUG] Error at import  saver_loader: {e}")
         return
 
     global main_window
@@ -40,7 +39,7 @@ def show_saver_loader():
         main_window.show()
     except Exception as e:
         nuke.message(f"Error initializing Saver Loader: {e}")
-        print(f"[DEBUG] Error al inicializar MainApp: {e}")
+        print(f"[DEBUG] Error starting  MainApp: {e}")
 
 
 # Add a custom menu in Nuke
