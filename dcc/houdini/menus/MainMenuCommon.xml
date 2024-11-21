@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mainMenu>
+    <menuBar>
+        <subMenu id="xo_main">
+            <label>xO</label>
+
+            <scriptItem id="xo_saver_loader">
+                <label>Saver Loader</label>
+                <scriptCode><![CDATA[
+import sys
+pipeline_path = "D:/Pipeline/xO/core"
+if pipeline_path not in sys.path:
+    sys.path.append(pipeline_path)
+
+from saver_loader.saver_loader import MainApp
+if not hasattr(hou.session, "xo_window"):
+    hou.session.xo_window = MainApp()
+
+hou.session.xo_window.show()
+                ]]></scriptCode>
+            </scriptItem>
+            <scriptItem id="xo_create_asset_template">
+                <label>Create Asset Template (Solaris)</label>
+                <scriptCode><![CDATA[
+import sys
+pipeline_path = "D:/Pipeline/xO/dcc/houdini/templates"
+if pipeline_path not in sys.path:
+    sys.path.append(pipeline_path)
+
+from create_asset_template import create_asset_template
+create_asset_template()
+                ]]></scriptCode>
+            </scriptItem>
+
+            <scriptItem id="xo_create_shot_template">
+                 <label>Create Shot Template (Solaris)</label>
+                 <scriptCode><![CDATA[
+import sys
+pipeline_path = "D:/Pipeline/xO/dcc/houdini/templates"
+if pipeline_path not in sys.path:
+    sys.path.append(pipeline_path)
+
+from create_shot_template import create_shot_template
+create_shot_template()
+                ]]></scriptCode>
+            </scriptItem>
+
+
+            <scriptItem id="xo_about">
+                <label>About...</label>
+                <scriptCode><![CDATA[
+hou.ui.displayMessage("xO Pipeline\nVersion: 1.0.0\nAuthor: Ronny Ascencio")
+                ]]></scriptCode>
+            </scriptItem>
+        </subMenu>
+    </menuBar>
+</mainMenu>

@@ -1,0 +1,12 @@
+{
+    "env": [
+        { "XO_PIPELINE": "D:/Pipeline/xO" },
+        { "PYTHONPATH": "$XO_PIPELINE/core;&" },
+        { "HOUDINI_MENU_PATH": "$XO_PIPELINE/dcc/houdini/menus;&" },
+        { "DCC": "Houdini" }
+    ],
+    "enable": true,
+    "description": "xO Pipeline integration package for Houdini",
+    "version": "1.0.0",
+    "name": "xO Pipeline"
+}

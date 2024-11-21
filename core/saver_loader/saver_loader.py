@@ -3,13 +3,14 @@ import os
 from PySide2.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide2.QtCore import QStringListModel, QFile, QIODevice
 from PySide2.QtUiTools import QUiLoader
+import hou  # Import específico para Houdini
 
 
 class MainApp(QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
-        self.dcc = os.getenv("DCC", "Maya")  # Asume Maya como predeterminado si DCC no está configurado
-        print(f"[DEBUG] DCC detected: {self.dcc}")  # Debug: DCC active
+        self.dcc = os.getenv("DCC", "Maya")  # Por defecto es Maya
+        print(f"[DEBUG] DCC detected: {self.dcc}")
         self.init_ui()
         self.setup_connections()
         self.populate_shows()
@@ -30,8 +31,6 @@ class MainApp(QMainWindow):
         self.ui.btn_save.clicked.connect(self.save_file)
         self.ui.btn_open.clicked.connect(self.open_file)
         self.ui.btn_refresh.clicked.connect(self.refresh_versions)
-
-
 
     def get_base_path(self):
         vfx_path = os.getenv("VFX")
@@ -95,16 +94,6 @@ class MainApp(QMainWindow):
         print(f"[DEBUG] Task selected: {task}")
         self.update_path_info()
 
-        # Específicas para Maya
-        if self.dcc == "Maya" and task in ["Modeling", "Shading", "LookDev", "Rigging"]:
-            self.ui.cbb_asset.setEnabled(True)
-            self.ui.line_assetname.setEnabled(True)
-            self.ui.cb_active.setEnabled(True)
-        else:
-            self.ui.cbb_asset.setEnabled(False)
-            self.ui.line_assetname.setEnabled(False)
-            self.ui.cb_active.setEnabled(False)
-
     def get_save_path(self):
         show = self.ui.cbb_show.currentText()
         sequence = self.ui.cbb_sequence.currentText()
@@ -116,12 +105,19 @@ class MainApp(QMainWindow):
             print("[DEBUG] Error: 'show' or 'task' not selected.")
             return None
 
-        if self.dcc == "Nuke":
-            if task in ["Compositing", "Prep"]:
+        if self.dcc == "Houdini":
+            if task in ["Layout", "Lighting", "Tracking", "FX"]:
                 if not sequence or not shot:
-                    print("[DEBUG] Error: 'sequence' or 'shot' not selected for Nuke.")
+                    print("[DEBUG] Error: 'sequence' or 'shot' not selected for Houdini.")
                     return None
-                return os.path.join(base_path, show, "scenes", sequence, shot, "nuke", "script")
+                return os.path.join(base_path, show, "scenes", sequence, shot, "houdini")
+            elif task in ["Modeling", "Shading", "Rigging", "LookDev"]:
+                asset_type = self.ui.cbb_asset.currentText()
+                if not asset_type:
+                    print("[DEBUG] Error: 'asset_type' not selected for assets in Houdini.")
+                    return None
+                return os.path.join(base_path, show, "assets", asset_type)
+
 
         elif self.dcc == "Maya":
             if task in ["Layout", "Lighting", "Tracking", "FX"]:
@@ -129,7 +125,6 @@ class MainApp(QMainWindow):
                     print("[DEBUG] Error: 'sequence' or 'shot' not selected for Maya.")
                     return None
                 return os.path.join(base_path, show, "scenes", sequence, shot, "maya")
-
             elif task in ["Modeling", "Shading", "Rigging", "LookDev"]:
                 asset_type = self.ui.cbb_asset.currentText()
                 if not asset_type:
@@ -137,21 +132,20 @@ class MainApp(QMainWindow):
                     return None
                 return os.path.join(base_path, show, "assets", asset_type)
 
+        elif self.dcc == "Nuke":
+            if not sequence or not shot:
+                print("[DEBUG] Error: 'sequence' or 'shot' not selected for Nuke.")
+                return None
+            return os.path.join(base_path, show, "scenes", sequence, shot, "nuke", "script")
+
         print(f"[DEBUG] Invalid task or DCC configuration: Task={task}, DCC={self.dcc}")
         return None
 
     def generate_filename(self):
         version = 1
         task = self.ui.cbb_task.currentText()
-        ext = ".ma" if self.dcc == "Maya" else ".nk"
-        name_components = [task]
-
-        if self.dcc == "Maya" and task in ["Modeling", "Shading", "LookDev", "Rigging"]:
-            name_components.append(self.ui.line_assetname.text())
-        else:
-            name_components = []
-            name_components.extend([self.ui.cbb_shot.currentText(), task])
-
+        ext = ".hiplc" if self.dcc == "Houdini" else ".ma" if self.dcc == "Maya" else ".nk"
+        name_components = [task, self.ui.cbb_shot.currentText()]
         name_components.append(f"v{version:03}")
         filename = "_".join(name_components) + ext
         save_path = self.get_save_path()
@@ -167,25 +161,26 @@ class MainApp(QMainWindow):
     def open_file(self):
         selected = self.ui.list_scripts_versions.currentIndex().data()
         if not selected:
-            QMessageBox.warning(self, "Error", "haven't selected a file.")
+            QMessageBox.warning(self, "Error", "Haven't selected a file.")
             return
 
         file_path = os.path.join(self.get_save_path(), selected)
 
-        # open the file acording  the DCC
         if self.dcc == "Maya":
             import maya.cmds as cmds
             cmds.file(file_path, open=True, force=True)
         elif self.dcc == "Nuke":
             import nuke
             nuke.scriptOpen(file_path)
+        elif self.dcc == "Houdini":
+            hou.hipFile.load(file_path, suppress_save_prompt=True)
 
         QMessageBox.information(self, "Open", f"Opening file: {file_path}")
 
     def save_file(self):
         save_path = self.get_save_path()
         if not save_path:
-            QMessageBox.warning(self, "Error", "couldn't determine the save path.")
+            QMessageBox.warning(self, "Error", "Couldn't determine the save path.")
             return
 
         filename = self.generate_filename()
@@ -199,6 +194,8 @@ class MainApp(QMainWindow):
         elif self.dcc == "Nuke":
             import nuke
             nuke.scriptSaveAs(file_path)
+        elif self.dcc == "Houdini":
+            hou.hipFile.save(file_path)
 
         QMessageBox.information(self, "Saved", f"File Saved: {file_path}")
         self.refresh_versions()
@@ -212,7 +209,7 @@ class MainApp(QMainWindow):
             self.ui.list_scripts_versions.setModel(QStringListModel())
             return
 
-        ext = ".nk" if self.dcc == "Nuke" else ".ma"
+        ext = ".hiplc" if self.dcc == "Houdini" else ".ma" if self.dcc == "Maya" else ".nk"
         try:
             versions = [f for f in os.listdir(save_path) if f.endswith(ext)]
             print(f"[DEBUG] Found versions: {versions}")
