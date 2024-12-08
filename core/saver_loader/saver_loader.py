@@ -1,16 +1,35 @@
 import sys
 import os
-from PySide2.QtWidgets import QApplication, QMainWindow, QMessageBox
-from PySide2.QtCore import QStringListModel, QFile, QIODevice
-from PySide2.QtUiTools import QUiLoader
-import hou  # Import específico para Houdini
+try:
+    from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
+    from PySide6.QtCore import QStringListModel, QFile, QIODevice
+    from PySide6.QtUiTools import QUiLoader
+    print("[DEBUG] Using PySide6")
+except ImportError:
+    try:
+        from PySide2.QtWidgets import QApplication, QMainWindow, QMessageBox
+        from PySide2.QtCore import QStringListModel, QFile, QIODevice
+        from PySide2.QtUiTools import QUiLoader
+        print("[DEBUG] Using PySide2")
+    except ImportError as e:
+        raise ImportError(f"Neither PySide6 nor PySide2 could be imported: {e}")
 
 
 class MainApp(QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
-        self.dcc = os.getenv("DCC", "Maya")  # Por defecto es Maya
-        print(f"[DEBUG] DCC detected: {self.dcc}")
+        self.dcc = os.getenv("DCC", "Maya")  # Asume Maya como predeterminado si DCC no está configurado
+        print(f"[DEBUG] DCC detectado: {self.dcc}")  # Depuración: DCC activo
+        self.init_ui()
+        self.setup_connections()
+        self.populate_shows()
+
+
+class MainApp(QMainWindow):
+    def __init__(self):
+        super(MainApp, self).__init__()
+        self.dcc = os.getenv("DCC", "Maya")  # Asume Maya como predeterminado si DCC no está configurado
+        print(f"[DEBUG] DCC detectado: {self.dcc}")  # Depuración: DCC activo
         self.init_ui()
         self.setup_connections()
         self.populate_shows()
@@ -25,8 +44,7 @@ class MainApp(QMainWindow):
         ui_file.close()
 
     def setup_connections(self):
-        self.ui.cbb_show.currentTextChanged.connect(self.populate_sequences)
-        self.ui.cbb_sequence.currentTextChanged.connect(self.populate_shots)
+        self.ui.cbb_show.currentTextChanged.connect(self.populate_shots)
         self.ui.cbb_task.currentTextChanged.connect(self.on_task_changed)
         self.ui.btn_save.clicked.connect(self.save_file)
         self.ui.btn_open.clicked.connect(self.open_file)
@@ -51,38 +69,24 @@ class MainApp(QMainWindow):
         self.ui.cbb_show.clear()
         self.ui.cbb_show.addItems(shows)
 
-    def populate_sequences(self):
+    def populate_shots(self):
+        """
+        Busca directamente los shots en el directorio de shots de un show.
+        """
         show = self.ui.cbb_show.currentText()
         if not show:
+            print("[DEBUG] Error: No show selected.")
             return
 
         base_path = self.get_base_path()
-        sequences_path = os.path.join(base_path, show, "scenes")
-
-        if not os.path.exists(sequences_path):
-            QMessageBox.warning(self, "Error", f"Directory not found: {sequences_path}")
-            return
-
-        sequences = [d for d in os.listdir(sequences_path) if os.path.isdir(os.path.join(sequences_path, d))]
-        print(f"[DEBUG] Sequences Path: {sequences_path}")
-        print(f"[DEBUG] Sequences detected: {sequences}")
-        self.ui.cbb_sequence.clear()
-        self.ui.cbb_sequence.addItems(sequences)
-
-    def populate_shots(self):
-        show = self.ui.cbb_show.currentText()
-        sequence = self.ui.cbb_sequence.currentText()
-        if not show or not sequence:
-            return
-
-        base_path = self.get_base_path()
-        shots_path = os.path.join(base_path, show, "scenes", sequence)
+        shots_path = os.path.join(base_path, show, "shots")  # Cambiado para apuntar directamente a shots
 
         if not os.path.exists(shots_path):
             print(f"[DEBUG] Shots Path not found: {shots_path}")
-            QMessageBox.warning(self, "Error", f"Directory not found: {shots_path}")
+            QMessageBox.warning(self, "Error", f"Shots directory not found: {shots_path}")
             return
 
+        # Busca todas las carpetas dentro de 'shots'
         shots = [d for d in os.listdir(shots_path) if os.path.isdir(os.path.join(shots_path, d))]
         print(f"[DEBUG] Shots Path: {shots_path}")
         print(f"[DEBUG] Shots detected: {shots}")
@@ -94,10 +98,20 @@ class MainApp(QMainWindow):
         print(f"[DEBUG] Task selected: {task}")
         self.update_path_info()
 
+        if self.dcc == "Maya" and task in ["Modeling", "Shading", "Look Dev", "Rigging"]:
+            self.ui.cbb_asset.setEnabled(True)
+            self.ui.line_assetname.setEnabled(True)
+            self.ui.cb_active.setEnabled(True)
+        else:
+            self.ui.cbb_asset.setEnabled(False)
+            self.ui.line_assetname.setEnabled(False)
+            self.ui.cb_active.setEnabled(False)
+
     def get_save_path(self):
+        """
+        Generates the save path based on DCC, task, show, and shot/asset.
+        """
         show = self.ui.cbb_show.currentText()
-        sequence = self.ui.cbb_sequence.currentText()
-        shot = self.ui.cbb_shot.currentText()
         task = self.ui.cbb_task.currentText()
         base_path = self.get_base_path()
 
@@ -105,55 +119,62 @@ class MainApp(QMainWindow):
             print("[DEBUG] Error: 'show' or 'task' not selected.")
             return None
 
-        if self.dcc == "Houdini":
-            if task in ["Layout", "Lighting", "Tracking", "FX"]:
-                if not sequence or not shot:
-                    print("[DEBUG] Error: 'sequence' or 'shot' not selected for Houdini.")
-                    return None
-                return os.path.join(base_path, show, "scenes", sequence, shot, "houdini")
-            elif task in ["Modeling", "Shading", "Rigging", "LookDev"]:
-                asset_type = self.ui.cbb_asset.currentText()
-                if not asset_type:
-                    print("[DEBUG] Error: 'asset_type' not selected for assets in Houdini.")
-                    return None
-                return os.path.join(base_path, show, "assets", asset_type)
-
-
-        elif self.dcc == "Maya":
-            if task in ["Layout", "Lighting", "Tracking", "FX"]:
-                if not sequence or not shot:
-                    print("[DEBUG] Error: 'sequence' or 'shot' not selected for Maya.")
-                    return None
-                return os.path.join(base_path, show, "scenes", sequence, shot, "maya")
-            elif task in ["Modeling", "Shading", "Rigging", "LookDev"]:
-                asset_type = self.ui.cbb_asset.currentText()
-                if not asset_type:
-                    print("[DEBUG] Error: 'asset_type' not selected for assets in Maya.")
-                    return None
-                return os.path.join(base_path, show, "assets", asset_type)
-
-        elif self.dcc == "Nuke":
-            if not sequence or not shot:
-                print("[DEBUG] Error: 'sequence' or 'shot' not selected for Nuke.")
+        if task in ["Modeling", "Rigging", "Shading", "Look Dev"]:
+            asset_type = self.ui.cbb_asset.currentText()
+            if not asset_type:
+                print("[DEBUG] Error: 'asset_type' not selected for asset tasks.")
+                QMessageBox.warning(self, "Error", "Please select an asset type.")
                 return None
-            return os.path.join(base_path, show, "scenes", sequence, shot, "nuke", "script")
-
-        print(f"[DEBUG] Invalid task or DCC configuration: Task={task}, DCC={self.dcc}")
-        return None
+            return os.path.join(base_path, show, "assets", asset_type)
+        else:
+            shot = self.ui.cbb_shot.currentText()
+            if not shot:
+                print("[DEBUG] Error: 'shot' not selected.")
+                QMessageBox.warning(self, "Error", "Please select a shot.")
+                return None
+            return os.path.join(base_path, show, "shots", shot, task.lower())
 
     def generate_filename(self):
+        """
+        Generates the filename based on the convention:
+        [assetname]_[task]_v[version].[ext] for assets
+        [shot]_[task]_v[version].[ext] for shots
+        """
         version = 1
         task = self.ui.cbb_task.currentText()
         ext = ".hiplc" if self.dcc == "Houdini" else ".ma" if self.dcc == "Maya" else ".nk"
-        name_components = [task, self.ui.cbb_shot.currentText()]
-        name_components.append(f"v{version:03}")
-        filename = "_".join(name_components) + ext
-        save_path = self.get_save_path()
 
+        # Determine naming based on asset or shot
+        if task in ["Modeling", "Rigging", "Shading", "Look Dev"]:
+            asset_name = self.ui.line_assetname.text()
+            if not asset_name:
+                print("[DEBUG] Error: 'asset_name' not provided for asset tasks.")
+                QMessageBox.warning(self, "Error", "Please enter a valid asset name.")
+                return None
+            # Asset naming convention
+            filename = f"{asset_name}_{task}_v{version:03}{ext}"
+        else:
+            shot = self.ui.cbb_shot.currentText()
+            if not shot or not task:
+                print("[DEBUG] Error: 'shot' or 'task' not selected.")
+                QMessageBox.warning(self, "Error", "Please select a shot and task.")
+                return None
+            # Shot naming convention
+            filename = f"{shot}_{task}_v{version:03}{ext}"
+
+        save_path = self.get_save_path()
+        if not save_path:
+            print("[DEBUG] Error: Save path could not be determined.")
+            QMessageBox.warning(self, "Error", "Save path could not be determined.")
+            return None
+
+        # Increment version if filename exists
         while os.path.exists(os.path.join(save_path, filename)):
             version += 1
-            name_components[-1] = f"v{version:03}"
-            filename = "_".join(name_components) + ext
+            if task in ["Modeling", "Rigging", "Shading", "Look Dev"]:
+                filename = f"{asset_name}_{task}_v{version:03}{ext}"
+            else:
+                filename = f"{shot}_{task}_v{version:03}{ext}"
 
         print(f"[DEBUG] Generating filename: {filename}")
         return filename
@@ -184,8 +205,13 @@ class MainApp(QMainWindow):
             return
 
         filename = self.generate_filename()
+        if not filename:
+            return
+
         file_path = os.path.join(save_path, filename)
         os.makedirs(save_path, exist_ok=True)
+
+        print(f"[DEBUG] Saving file to: {file_path}")
 
         if self.dcc == "Maya":
             import maya.cmds as cmds
@@ -201,6 +227,9 @@ class MainApp(QMainWindow):
         self.refresh_versions()
 
     def refresh_versions(self):
+        """
+        Actualiza la lista de versiones disponibles para la tarea seleccionada en la interfaz.
+        """
         save_path = self.get_save_path()
         print(f"[DEBUG] Refresh Versions: Save Path = {save_path}")
 
@@ -210,9 +239,14 @@ class MainApp(QMainWindow):
             return
 
         ext = ".hiplc" if self.dcc == "Houdini" else ".ma" if self.dcc == "Maya" else ".nk"
+        task_filter = self.ui.cbb_task.currentText()
+
         try:
-            versions = [f for f in os.listdir(save_path) if f.endswith(ext)]
-            print(f"[DEBUG] Found versions: {versions}")
+            versions = [
+                f for f in os.listdir(save_path)
+                if f.endswith(ext) and task_filter in f
+            ]
+            print(f"[DEBUG] Found versions filtered by task '{task_filter}': {versions}")
         except Exception as e:
             print(f"[DEBUG] Error listing versions: {e}")
             versions = []
