@@ -15,15 +15,6 @@ except ImportError:
         raise ImportError(f"Neither PySide6 nor PySide2 could be imported: {e}")
 
 
-class MainApp(QMainWindow):
-    def __init__(self):
-        super(MainApp, self).__init__()
-        self.dcc = os.getenv("DCC", "Maya")  # Asume Maya como predeterminado si DCC no está configurado
-        print(f"[DEBUG] DCC detectado: {self.dcc}")  # Depuración: DCC activo
-        self.init_ui()
-        self.setup_connections()
-        self.populate_shows()
-
 
 class MainApp(QMainWindow):
     def __init__(self):
@@ -114,6 +105,7 @@ class MainApp(QMainWindow):
         show = self.ui.cbb_show.currentText()
         task = self.ui.cbb_task.currentText()
         base_path = self.get_base_path()
+        dcc = self.dcc
 
         if not show or not task:
             print("[DEBUG] Error: 'show' or 'task' not selected.")
@@ -132,7 +124,7 @@ class MainApp(QMainWindow):
                 print("[DEBUG] Error: 'shot' not selected.")
                 QMessageBox.warning(self, "Error", "Please select a shot.")
                 return None
-            return os.path.join(base_path, show, "shots", shot, task.lower())
+            return os.path.join(base_path, show, "shots", shot, task.lower(), dcc.lower(), "script")
 
     def generate_filename(self):
         """
